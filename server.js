@@ -1,14 +1,18 @@
-const http = require('http'); // Using HTTP since SSL termination will be handled externally
-const url = require('url');
+const express = require('express');
+const https = require('https');
 
-const server = http.createServer((req, res) => {
-    const queryObject = url.parse(req.url, true).query;
-    const uid = queryObject.uid;
+// Create an Express app
+const app = express();
+
+// Use the port provided by Render or default to 8080 for local development
+const PORT = process.env.PORT || 8080;
+
+// Define the `/api` endpoint
+app.get('/api', (req, res) => {
+    const uid = req.query.uid;
 
     if (!uid) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: "UID is required" }));
-        return;
+        return res.status(400).json({ error: "UID is required" });
     }
 
     const options = {
@@ -19,7 +23,7 @@ const server = http.createServer((req, res) => {
         rejectUnauthorized: true, // Validate SSL certificates
     };
 
-    const fbReq = https.request(options, fbRes => {
+    https.get(options, fbRes => {
         let data = '';
 
         fbRes.on('data', chunk => {
@@ -28,24 +32,22 @@ const server = http.createServer((req, res) => {
 
         fbRes.on('end', () => {
             if (data.includes("Photoshop")) {
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ status: "Alive" }));
+                res.status(200).json({ status: "Alive" });
             } else {
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ status: "Dead" }));
+                res.status(200).json({ status: "Dead" });
             }
         });
+    }).on('error', error => {
+        res.status(500).json({ error: "Request failed", details: error.message });
     });
+});
 
-    fbReq.on('error', error => {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: "Request failed", details: error.message }));
-    });
-
-    fbReq.end();
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: "OK" });
 });
 
 // Start the server
-server.listen(8080, () => {
-    console.log("Server is running on http://localhost:8080/");
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });
