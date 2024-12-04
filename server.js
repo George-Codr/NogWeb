@@ -1,52 +1,51 @@
-const https = require('https');
-const express = require('express');
-const app = express();
-const PORT = process.env.PORT || 80; // Default to port 80 for web hosting
+const http = require('http'); // Using HTTP since SSL termination will be handled externally
+const url = require('url');
 
-// Endpoint to process user ID
-app.get('/dsr/:uid', (req, res) => {
-    const uid = req.params.uid;
+const server = http.createServer((req, res) => {
+    const queryObject = url.parse(req.url, true).query;
+    const uid = queryObject.uid;
+
+    if (!uid) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: "UID is required" }));
+        return;
+    }
 
     const options = {
         hostname: 'graph.facebook.com',
         port: 443,
         path: `/${uid}/picture?type=normal`,
         method: 'GET',
-        rejectUnauthorized: true, // Ensure SSL certificate validation
+        rejectUnauthorized: true, // Validate SSL certificates
     };
 
-    const apiRequest = https.request(options, (apiResponse) => {
+    const fbReq = https.request(options, fbRes => {
         let data = '';
 
-        // Collect data chunks
-        apiResponse.on('data', (chunk) => {
+        fbRes.on('data', chunk => {
             data += chunk;
         });
 
-        // Process response when complete
-        apiResponse.on('end', () => {
-            try {
-                const result = {
-                    statusCode: apiResponse.statusCode,
-                    body: data,
-                    status: data.includes("Photoshop") ? "Alive" : "Dead",
-                };
-                res.json(result);
-            } catch (error) {
-                res.status(500).json({ error: "Error processing response" });
+        fbRes.on('end', () => {
+            if (data.includes("Photoshop")) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ status: "Alive" }));
+            } else {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ status: "Dead" }));
             }
         });
     });
 
-    // Handle errors
-    apiRequest.on('error', (error) => {
-        res.status(500).json({ error: error.message });
+    fbReq.on('error', error => {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: "Request failed", details: error.message }));
     });
 
-    apiRequest.end();
+    fbReq.end();
 });
 
 // Start the server
-app.listen(PORT, () => {
-    console.log(`Server running at http://yourdomain.com:${PORT}/`);
+server.listen(8080, () => {
+    console.log("Server is running on http://localhost:8080/");
 });
