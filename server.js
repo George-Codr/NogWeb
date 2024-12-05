@@ -24,19 +24,12 @@ app.get('/api', (req, res) => {
     };
 
     https.get(options, fbRes => {
-        let data = '';
-
-        fbRes.on('data', chunk => {
-            data += chunk;
-        });
-
-        fbRes.on('end', () => {
-            if (data.includes("Photoshop")) {
-                res.status(200).json({ status: "Alive" });
-            } else {
-                res.status(200).json({ status: "Dead" });
-            }
-        });
+        // Check if the response indicates a valid profile
+        if (fbRes.statusCode === 200) {
+            res.status(200).json({ status: "Alive" });
+        } else {
+            res.status(404).json({ status: "Dead" });
+        }
     }).on('error', error => {
         res.status(500).json({ error: "Request failed", details: error.message });
     });
