@@ -20,15 +20,17 @@ app.get('/api', (req, res) => {
         port: 443,
         path: `/${uid}/picture?type=normal`,
         method: 'GET',
-        rejectUnauthorized: true, // Validate SSL certificates
+        rejectUnauthorized: true,
     };
 
     https.get(options, fbRes => {
-        // Check if the response indicates a valid profile
-        if (fbRes.statusCode === 200) {
+        // Handle valid responses (200 or 302)
+        if (fbRes.statusCode === 200 || fbRes.statusCode === 302) {
             res.status(200).json({ status: "Alive" });
-        } else {
+        } else if (fbRes.statusCode === 404) {
             res.status(404).json({ status: "Dead" });
+        } else {
+            res.status(500).json({ error: `Unexpected response: ${fbRes.statusCode}` });
         }
     }).on('error', error => {
         res.status(500).json({ error: "Request failed", details: error.message });
