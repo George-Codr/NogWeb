@@ -24,11 +24,22 @@ app.get('/api', (req, res) => {
     };
 
     https.get(options, fbRes => {
-        // Handle valid responses (200 or 302)
+        // Check if the account exists
         if (fbRes.statusCode === 200 || fbRes.statusCode === 302) {
-            res.status(200).json({ status: "Alive" });
+            // Account is found; proceed with the checking process
+            res.status(200).json({ 
+                status: "Alive", 
+                message: "Account found. Starting checking process..." 
+            });
+
+            // Example: Add further processing logic here
+            console.log(`Checking process started for UID: ${uid}`);
         } else if (fbRes.statusCode === 404) {
-            res.status(404).json({ status: "Dead" });
+            // Account not found
+            res.status(404).json({ 
+                status: "Not Found", 
+                message: "Account not found." 
+            });
         } else {
             res.status(500).json({ error: `Unexpected response: ${fbRes.statusCode}` });
         }
